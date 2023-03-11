@@ -69,6 +69,7 @@ app.post('/login', async (req,res)=>{
 
 const server = app.listen(3999);
 
+//read username and userid from cookie and validate them
 const wss = new ws.WebSocketServer({server});
 wss.on('connection',(connection, req)=>{
    const cookies =req.headers.cookie;
@@ -87,12 +88,23 @@ wss.on('connection',(connection, req)=>{
         }
     }
    }
-
-   [...wss.clients].forEach(client=>{
-        client.send(JSON.stringify({
-            online:[...wss.clients].map(c=>({userId:c.userId,username:c.username})),
-        }
-            
-        ));
-   });
+//on message connection
+connection.on('message', (message) => {
+    const messageData = JSON.parse(message.toString());
+    const { recipient, text } = messageData;
+    if (recipient && text) {
+      [...wss.clients]
+        .filter(c => c.userId === recipient)
+        .forEach(c => c.send(JSON.stringify({ text })));
+    }
+  });
+  
+//notify everyone about online people 
+[...wss.clients].forEach(client=>{
+    client.send(JSON.stringify({
+        online:[...wss.clients].map(c=>({userId:c.userId,username:c.username})),
+    }
+        
+    ));
+});
 });
